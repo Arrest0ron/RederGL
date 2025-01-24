@@ -1,0 +1,15 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build and Run",
+            "type": "shell",
+            "command": "cmake . && cmake --build . && ./RederGL",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "detail": "Build and run the project"
+        }
+    ]
+}
