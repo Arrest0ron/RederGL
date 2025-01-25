@@ -1,7 +1,7 @@
 ## RederGL
 
 This will be something for my college.
-
+!["Funny triangle"](Illustrations/image.png)
 ## License
 >The MIT License (MIT)
 
