@@ -1,8 +1,9 @@
 ## RederGL
 
-This will be something for my college.
+I will finally render several 3D objects in one scene!
 
 !["Funny triangle"](Illustrations/image.png)
+
 ## License
 >The MIT License (MIT)
 
