@@ -168,11 +168,12 @@ int main()
         glBindTexture(GL_TEXTURE_2D, texture2);
 
         // create transformations
+        float timesin = (float) sin((float)glfwGetTime());
         glm::mat4 transform = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
         transform = glm::translate(transform, glm::vec3(0.5f, -0.5f, 0.0f));
         glm::mat4 transform1 = glm::rotate(transform, (float) glfwGetTime(), glm::vec3(0.0f, 0.0f, 1.0f));
         transform = glm::translate(transform, glm::vec3(-1.f, 1.f, 0.0f));
-        glm::mat4 transform2 = glm::rotate(transform, (float) glfwGetTime(), glm::vec3(0.0f, 0.0f, 1.0f));
+        glm::mat4 transform2 = glm::scale(transform, glm::vec3 (timesin, timesin, timesin));
 
         // get matrix's uniform location and set matrix
         ourShader.use();
