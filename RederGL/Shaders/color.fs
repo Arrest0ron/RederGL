@@ -9,9 +9,9 @@ void main()
 {
     
     FragColor = vec4(Coord, 1.0f);
-    if ( (abs(Coord.z - trunc(Coord.z)) < 0.02f)  || (abs(Coord.x - trunc(Coord.x)) < 0.02f)  )
+    if ( (abs(Coord.z - trunc(Coord.z)) < 0.05f)  || (abs(Coord.x - trunc(Coord.x)) < 0.05f)  )
     {
-        FragColor = vec4(0.f, 0.f, 0.f, 1.0f);
+        FragColor = vec4(0.1f - Coord.x, FragColor.y, 0.1f - Coord.z, 1.0f);
     }
 }
 
