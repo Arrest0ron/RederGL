@@ -2,7 +2,7 @@
 
 I will finally render several 3D objects in one scene!
 
-!["Funny triangle"](Illustrations/image.png)
+!["Funny grid"](Illustrations/grid.png)
 
 ## License
 >The MIT License (MIT)
