@@ -4,6 +4,7 @@ I will finally render several 3D objects in one scene!
 
 !["Funny grid"](Illustrations/sinwave.png)
 !["noise](Illustrations/noise.png)
+!["terrain"](Illustrations/terrain.png)
 
 ## License
 >The MIT License (MIT)
