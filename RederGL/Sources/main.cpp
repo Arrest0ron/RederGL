@@ -1,18 +1,16 @@
-
-
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
-
 #include <glm/glm.hpp>
 #define STB_PERLIN_IMPLEMENTATION
 #include <stb_perlin.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <shader.hpp>
-
 #include <iostream>
+#include <settings.hpp>
+#include "benchmark.hpp"
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
@@ -20,6 +18,7 @@ void processInput(GLFWwindow *window);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 
 // settings
+const bool FPS_CAMERA = false;
 const unsigned int SCR_WIDTH = 1920;
 const unsigned int SCR_HEIGHT = 1080;
 // camera
@@ -52,6 +51,7 @@ int main()
 
     // glfw window creation
     // --------------------
+
     GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL, NULL);
     if (window == NULL)
     {
@@ -62,6 +62,7 @@ int main()
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetCursorPosCallback(window, mouse_callback);
+    glfwSwapInterval(0);
 
     // glad: load all OpenGL function pointers
     // ---------------------------------------
@@ -76,26 +77,29 @@ int main()
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     glEnable(GL_DEPTH_TEST);
-    // glEnable(GL_CULL_FACE);
-    // glFrontFace(GL_CW);
-    // glCullFace(GL_FRONT);
+    glEnable(GL_CULL_FACE);
+    glFrontFace(GL_CW);
+    glCullFace(GL_FRONT);
+    if (DEBUG) {glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);}
 
     // build and compile our shader zprogram
     // ------------------------------------
-    Shader ourShader("transform.vs", "color.fs");
+    Shader ourShader("transform.vs", "terrain_level.fs");
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
     float vertices_monotone_cube[] = {
-        0.0f, 0.0f, 0.0f, 
-        0.0f, 1.0f, 0.0f, 
-        1.0f, 1.0f, 0.0f, 
-        1.0f, 0.0f, 0.0f, 
-
-        0.0f, 0.0f, 1.0f, 
-        0.0f, 1.0f, 1.0f, 
-        1.0f, 1.0f, 1.0f, 
-        1.0f, 0.0f, 1.0f, 
+        // Bottom face (y = 0)
+        0.0f, 0.0f, 0.0f, // 0
+        1.0f, 0.0f, 0.0f, // 1
+        1.0f, 0.0f, 1.0f, // 2
+        0.0f, 0.0f, 1.0f, // 3
+    
+        // Top face (y = 1)
+        0.0f, 1.0f, 0.0f, // 4
+        1.0f, 1.0f, 0.0f, // 5
+        1.0f, 1.0f, 1.0f, // 6
+        0.0f, 1.0f, 1.0f, // 7
     };
     // float vertices_monotone_cube[] = 
     // {
@@ -110,30 +114,29 @@ int main()
     //     0, 2, 3
     // };
     unsigned int indices_monotone_cube[] = {
-        // down face
-        0, 1, 2, 
-        0, 2, 3,
-
-        // up face
-        4, 5, 6, 
-        4, 6, 7,
-
-        // left face 
-        0, 4, 5,
-        0, 1, 5,
-
-        // right face
-        3, 7, 6,
-        3, 6, 2,
-
-        // back face
-        1, 5, 2,
-        5, 6, 2,
-
-        // front face
-        0, 4, 7, 
-        0, 7, 3
-
+        // Bottom face (y = 0)
+        0, 1, 2, // Triangle 1
+        0, 2, 3, // Triangle 2
+    
+        // Top face (y = 1)
+        4, 6, 5, // Triangle 1
+        4, 7, 6, // Triangle 2
+    
+        // Front face (z = 1)
+        3, 2, 6, // Triangle 1
+        3, 6, 7, // Triangle 2
+    
+        // Back face (z = 0)
+        0, 5, 1, // Triangle 1
+        0, 4, 5, // Triangle 2
+    
+        // Left face (x = 0)
+        0, 3, 7, // Triangle 1
+        0, 7, 4, // Triangle 2
+    
+        // Right face (x = 1)
+        1, 6, 2, // Triangle 1
+        1, 5, 6, // Triangle 2
     };
     // world space positions of our cubes
     // glm::vec3 cubePositions[] = {
@@ -229,41 +232,47 @@ int main()
     // ourShader.use();
     // ourShader.setInt("texture1", 0);
     // ourShader.setInt("texture2", 1);
-
-    int terrain[160][160];
-    for (int x = 0; x!=160; x++)
+    const int MAP_SIZE = 200;
+    int terrain[MAP_SIZE][MAP_SIZE];
+    srand(SEED);
+    int SEED_X = (rand())%100003, SEED_Z = (rand())%100151;
+    
+    for (int x = 0; x!=MAP_SIZE; x++)
     {
-        for (int z = 0; z != 160; z++)
+        for (int z = 0; z != MAP_SIZE; z++)
         {
             
         // calculate the model matrix for each object and pass it to shader before drawing
         glm::mat4 model = glm::mat4(1.0f);
         
         // float angle = 20.0f * i;
-        double sin_v = 0.f, cos_v = 0.f;
-        sincos(glfwGetTime(), &sin_v, &cos_v);
-        float final = (glfwGetTime());
+        // double sin_v = 0.f, cos_v = 0.f;
+        // sincos(glfwGetTime(), &sin_v, &cos_v);
+        // float final = (glfwGetTime());
         float lacunarity = 2.0f, gain = 0.3f;
         int octaves = 5;
-    
+  
+        // int HASH = 489144;
+        
         // Scale the coordinates and add an offset to avoid integer grid points
         float scale = 0.02f;
-        terrain[x][z] = stb_perlin_fbm_noise3((float)x * scale, 0.0f, (float)z * scale, lacunarity, gain, octaves)*10;
+        terrain[x][z] = stb_perlin_fbm_noise3(((float)(x+SEED_X) )* scale, 0.0f, (float)(z+SEED_Z) * scale, lacunarity, gain, octaves)*10;
         }
     }
     // render loop
     // -----------
     ourShader.use();
 
-    glm::mat4 projection = glm::perspective(glm::radians(90.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 160.0f);
+    glm::mat4 projection = glm::perspective(glm::radians(90.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.2f, 1000.f);
     ourShader.setMat4("projection", projection); // note: currently we set the projection matrix each frame, but since the projection matrix rarely changes it's often best practice to set it outside the main loop only once.
     glBindVertexArray(VAO_monotone_cube);
-    
+    ChunkBenchmark bcmrk;
     while (!glfwWindowShouldClose(window))
     {
         // input
         // -----
         processInput(window);
+
 
         // render
         // ------
@@ -296,9 +305,9 @@ int main()
         // render boxes
         
 
-        for (int x = 0; x!=160; x++)
+        for (int x = 0; x!=MAP_SIZE; x++)
         {
-            for (int z = 0; z != 160; z++)
+            for (int z = 0; z != MAP_SIZE; z++)
             {
                 
             // calculate the model matrix for each object and pass it to shader before drawing
@@ -306,33 +315,26 @@ int main()
             // for (int y = terrain[x][z]; y!= terrain[x][z];y++)
             // {
                 glm::mat4 model = glm::mat4(1.0f);
-                int y = terrain[x][z]-25;
+                // int y = terrain[x][z];
                 // std::cout << x << " " << y << " " << z <<" ";
-                model = glm::translate(model, glm::vec3(x, y, z));   
-            
-        
+                model = glm::translate(model, glm::vec3(x, terrain[x][z], z));   
                 // model = glm::scale(model, glm::vec3(final, 1.f, final));
                 // model = glm::rotate(model, final, glm::vec3(1.0f, 1.f, 1.f));
                 // // model = glm::rotate(model, 5.f, glm::vec3( i%4, i%3, i%2));
                 ourShader.setMat4("model", model);
-    
-    
                 // glDrawArrays(GL_TRIANGLES, 0, 180);
                 // glDrawElements(GL_TRIANGLES, sizeof(indices_monotone_cube) / sizeof(unsigned int), GL_UNSIGNED_INT, 0);
                 glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
             // }
             // std::cout << "\n\n";
-
             }
         }
-
-
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
         glfwSwapBuffers(window);
         glfwPollEvents();
+        bcmrk.frame(deltaTime);
     }
-
     // optional: de-allocate all resources once they've outlived their purpose:
     // ------------------------------------------------------------------------
     glDeleteVertexArrays(1, &VAO_monotone_cube);
@@ -343,42 +345,73 @@ int main()
     glfwTerminate();
     return 0;
 }
+
 int frame = 0;
 float fps = 0.0f;
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
 // ---------------------------------------------------------------------------------------------------------
 void processInput(GLFWwindow *window)
 {
-    frame ++;
+    // frame ++;
     float currentFrame = glfwGetTime();
     
     deltaTime = currentFrame - lastFrame;
     lastFrame = currentFrame;  
-    fps += deltaTime;
-    if (frame == 60 ){
-         std::cout << 60.0/fps << "\n";
-         fps = 0.0f;
-         frame = 0;
-        }
-
+    // fps += deltaTime;
+    // if (frame == 60 ){
+    //      std::cout << 60.0/fps << "\n";
+    //      fps = 0.0f;
+    //      frame = 0;
+    //     }
+        // cameraPos.y = 0.0f;
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS){
         glfwSetWindowShouldClose(window, true);}
 
-
+    if ( (glfwGetKey(window, GLFW_KEY_TAB) == GLFW_PRESS) && (DEBUG_PRESS_HINT == true)){
+        if (DEBUG)
+        {
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        }
+        else
+        {
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        }
+        DEBUG = !DEBUG;
+        DEBUG_PRESS_HINT = false;
+    }
+    if (glfwGetKey(window, GLFW_KEY_TAB) == GLFW_RELEASE)
+    {
+        DEBUG_PRESS_HINT = true;
+    }
+    
     float cameraSpeed = static_cast<float>(25.0 * deltaTime);
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        cameraPos += (glm::normalize(glm::vec3(cameraFront.x, 0, cameraFront.z))*cameraSpeed) ;
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        cameraPos -= (glm::normalize(glm::vec3(cameraFront.x, 0, cameraFront.z))*cameraSpeed) ;
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
-    cameraPos.y = 0.0f;
+    if (FPS_CAMERA)
+    {
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+            cameraPos += (glm::normalize(glm::vec3(cameraFront.x, 0, cameraFront.z))*cameraSpeed) ;
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+            cameraPos -= (glm::normalize(glm::vec3(cameraFront.x, 0, cameraFront.z))*cameraSpeed) ;
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+            cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+            cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+        cameraPos.y = 0.0f;
+    }
+    else 
+    {
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+            cameraPos += cameraFront*cameraSpeed;
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+            cameraPos -= cameraFront*cameraSpeed; 
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+            cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+            cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+    }
+
 }
 void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 {
-    
     if (firstMouse)
     {
         lastX = xpos;
