@@ -77,7 +77,8 @@ int main()
 
     glEnable(GL_DEPTH_TEST);
     // glEnable(GL_CULL_FACE);
-    // glCullFace(GL_BACK);
+    // glFrontFace(GL_CW);
+    // glCullFace(GL_FRONT);
 
     // build and compile our shader zprogram
     // ------------------------------------
@@ -135,17 +136,17 @@ int main()
 
     };
     // world space positions of our cubes
-    glm::vec3 cubePositions[] = {
-        glm::vec3( 0.0f, -2.0f,  0.0f),
-        glm::vec3( 0.0f, -2.0f, 1.0f),
-        glm::vec3( 0.0f, -2.0f,  2.0f),
-        glm::vec3( 1.0f, -2.0f,  0.0f),
-        glm::vec3( 1.0f, -2.0f,  1.0f),
-        glm::vec3( 1.0f, -2.0f,  2.0f),
-        glm::vec3( 2.0f, -2.0f,  0.0f),
-        glm::vec3( 2.0f, -2.0f,  1.0f),
-        glm::vec3( 2.0f, -2.0f, 2.0f),
-    };
+    // glm::vec3 cubePositions[] = {
+    //     glm::vec3( 0.0f, -2.0f,  0.0f),
+    //     glm::vec3( 0.0f, -2.0f, 1.0f),
+    //     glm::vec3( 0.0f, -2.0f,  2.0f),
+    //     glm::vec3( 1.0f, -2.0f,  0.0f),
+    //     glm::vec3( 1.0f, -2.0f,  1.0f),
+    //     glm::vec3( 1.0f, -2.0f,  2.0f),
+    //     glm::vec3( 2.0f, -2.0f,  0.0f),
+    //     glm::vec3( 2.0f, -2.0f,  1.0f),
+    //     glm::vec3( 2.0f, -2.0f, 2.0f),
+    // };
 
     GLuint VBO_monotone_cube, VAO_monotone_cube, EBO_monotone_cube;
 
@@ -174,31 +175,31 @@ int main()
 
     // load and create a texture 
     // -------------------------
-    unsigned int texture1;
-    // texture 1
-    // ---------
-    glGenTextures(1, &texture1);
-    glBindTexture(GL_TEXTURE_2D, texture1);
-    // set the texture wrapping parameters
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    // set texture filtering parameters
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    // load image, create texture and generate mipmaps
-    int width, height, nrChannels;
-    stbi_set_flip_vertically_on_load(true); // tell stb_image.h to flip loaded texture's on the y-axis.
-    unsigned char *data = stbi_load("/home/user/RederGL/RederGL/Textures/container.jpg", &width, &height, &nrChannels, 0);
-    if (data)
-    {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-        glGenerateMipmap(GL_TEXTURE_2D);
-    }
-    else
-    {
-        std::cout << "Failed to load texture" << std::endl;
-    }
-    stbi_image_free(data);
+    // unsigned int texture1;
+    // // texture 1
+    // // ---------
+    // glGenTextures(1, &texture1);
+    // glBindTexture(GL_TEXTURE_2D, texture1);
+    // // set the texture wrapping parameters
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    // // set texture filtering parameters
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // // load image, create texture and generate mipmaps
+    // int width, height, nrChannels;
+    // stbi_set_flip_vertically_on_load(true); // tell stb_image.h to flip loaded texture's on the y-axis.
+    // unsigned char *data = stbi_load("/home/user/RederGL/RederGL/Textures/container.jpg", &width, &height, &nrChannels, 0);
+    // if (data)
+    // {
+    //     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+    //     glGenerateMipmap(GL_TEXTURE_2D);
+    // }
+    // else
+    // {
+    //     std::cout << "Failed to load texture" << std::endl;
+    // }
+    // stbi_image_free(data);
     // texture 2
     // ---------
     // glGenTextures(1, &texture2);
@@ -225,13 +226,39 @@ int main()
 
     // tell opengl for each sampler to which texture unit it belongs to (only has to be done once)
     // -------------------------------------------------------------------------------------------
-    ourShader.use();
+    // ourShader.use();
     // ourShader.setInt("texture1", 0);
     // ourShader.setInt("texture2", 1);
 
-
+    int terrain[160][160];
+    for (int x = 0; x!=160; x++)
+    {
+        for (int z = 0; z != 160; z++)
+        {
+            
+        // calculate the model matrix for each object and pass it to shader before drawing
+        glm::mat4 model = glm::mat4(1.0f);
+        
+        // float angle = 20.0f * i;
+        double sin_v = 0.f, cos_v = 0.f;
+        sincos(glfwGetTime(), &sin_v, &cos_v);
+        float final = (glfwGetTime());
+        float lacunarity = 2.0f, gain = 0.3f;
+        int octaves = 5;
+    
+        // Scale the coordinates and add an offset to avoid integer grid points
+        float scale = 0.02f;
+        terrain[x][z] = stb_perlin_fbm_noise3((float)x * scale, 0.0f, (float)z * scale, lacunarity, gain, octaves)*10;
+        }
+    }
     // render loop
     // -----------
+    ourShader.use();
+
+    glm::mat4 projection = glm::perspective(glm::radians(90.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 160.0f);
+    ourShader.setMat4("projection", projection); // note: currently we set the projection matrix each frame, but since the projection matrix rarely changes it's often best practice to set it outside the main loop only once.
+    glBindVertexArray(VAO_monotone_cube);
+    
     while (!glfwWindowShouldClose(window))
     {
         // input
@@ -250,12 +277,11 @@ int main()
         // glBindTexture(GL_TEXTURE_2D, texture2);
 
         // activate shader
-        ourShader.use();
 
         // create transformations
         // glm::mat4 view          = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
         // glm::mat4 projection    = glm::mat4(1.0f);
-        glm::mat4 projection = glm::perspective(glm::radians(90.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
+       
         // glm::mat4 view = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
         // float radius = 10.0f;
 
@@ -264,42 +290,42 @@ int main()
         // ourShader.setMat4("model", model);
 
         // // pass transformation matrices to the shader
-        ourShader.setMat4("projection", projection); // note: currently we set the projection matrix each frame, but since the projection matrix rarely changes it's often best practice to set it outside the main loop only once.
         // ourShader.setMat4("view", view);
-        ourShader.setVec4("color", glm::vec4(1.f, 1.f,1.f,0.f));
+        // ourShader.setVec4("color", glm::vec4(1.f, 1.f,1.f,0.f));
 
         // render boxes
-        glBindVertexArray(VAO_monotone_cube);
-        for (int x = -10; x!=10; x++)
+        
+
+        for (int x = 0; x!=160; x++)
         {
-            for (int z = -10; z != 10; z++)
+            for (int z = 0; z != 160; z++)
             {
                 
             // calculate the model matrix for each object and pass it to shader before drawing
-            glm::mat4 model = glm::mat4(1.0f);
             
-            // float angle = 20.0f * i;
-            float lacunarity = 10.0f, gain = 10.f;
-            int octaves = 6;
-            double sin_v = 0.f, cos_v = 0.f;
-            sincos(glfwGetTime(), &sin_v, &cos_v);
-            float final = (glfwGetTime());
-            float base_terrain = stb_perlin_fbm_noise3((float)x+0.5f, 1.0f, (float)z+0.5f, lacunarity, gain, octaves)*10;
-            std::cout << base_terrain << "\n";
-            if (final > 10.f){final = 10.0f;}
-            model = glm::translate(model, glm::vec3(x, (float)(int)base_terrain-10, z));
+            // for (int y = terrain[x][z]; y!= terrain[x][z];y++)
+            // {
+                glm::mat4 model = glm::mat4(1.0f);
+                int y = terrain[x][z]-25;
+                // std::cout << x << " " << y << " " << z <<" ";
+                model = glm::translate(model, glm::vec3(x, y, z));   
             
         
-            // model = glm::scale(model, glm::vec3(final, 1.f, final));
-            // model = glm::rotate(model, final, glm::vec3(1.0f, 1.f, 1.f));
-            // // model = glm::rotate(model, 5.f, glm::vec3( i%4, i%3, i%2));
-            ourShader.setMat4("model", model);
+                // model = glm::scale(model, glm::vec3(final, 1.f, final));
+                // model = glm::rotate(model, final, glm::vec3(1.0f, 1.f, 1.f));
+                // // model = glm::rotate(model, 5.f, glm::vec3( i%4, i%3, i%2));
+                ourShader.setMat4("model", model);
+    
+    
+                // glDrawArrays(GL_TRIANGLES, 0, 180);
+                // glDrawElements(GL_TRIANGLES, sizeof(indices_monotone_cube) / sizeof(unsigned int), GL_UNSIGNED_INT, 0);
+                glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+            // }
+            // std::cout << "\n\n";
 
-
-            // glDrawArrays(GL_TRIANGLES, 0, 180);
-            glDrawElements(GL_TRIANGLES, sizeof(indices_monotone_cube) / sizeof(unsigned int), GL_UNSIGNED_INT, 0);
             }
         }
+
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
@@ -317,20 +343,29 @@ int main()
     glfwTerminate();
     return 0;
 }
-
+int frame = 0;
+float fps = 0.0f;
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
 // ---------------------------------------------------------------------------------------------------------
 void processInput(GLFWwindow *window)
 {
-
+    frame ++;
     float currentFrame = glfwGetTime();
+    
     deltaTime = currentFrame - lastFrame;
     lastFrame = currentFrame;  
+    fps += deltaTime;
+    if (frame == 60 ){
+         std::cout << 60.0/fps << "\n";
+         fps = 0.0f;
+         frame = 0;
+        }
+
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS){
         glfwSetWindowShouldClose(window, true);}
 
 
-    float cameraSpeed = static_cast<float>(2.5 * deltaTime);
+    float cameraSpeed = static_cast<float>(25.0 * deltaTime);
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         cameraPos += (glm::normalize(glm::vec3(cameraFront.x, 0, cameraFront.z))*cameraSpeed) ;
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
@@ -343,6 +378,7 @@ void processInput(GLFWwindow *window)
 }
 void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 {
+    
     if (firstMouse)
     {
         lastX = xpos;
