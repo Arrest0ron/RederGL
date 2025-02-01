@@ -3,8 +3,10 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 #include <glm/glm.hpp>
-#define STB_PERLIN_IMPLEMENTATION
-#include <stb_perlin.h>
+// #define STB_PERLIN_IMPLEMENTATION
+// #include <stb_perlin.h>
+#include <vector>
+#include <chunk.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <shader.hpp>
@@ -232,31 +234,37 @@ int main()
     // ourShader.use();
     // ourShader.setInt("texture1", 0);
     // ourShader.setInt("texture2", 1);
-    const int MAP_SIZE = 200;
+
+    const int MAP_SIZE = 7;
     int terrain[MAP_SIZE][MAP_SIZE];
-    srand(SEED);
-    int SEED_X = (rand())%100003, SEED_Z = (rand())%100151;
-    
+    srand(time(0));
+    SEED_X = (rand())%100003, SEED_Z = (rand())%100151;
+
+  
+
+    std::vector<std::vector<Chunk*>>chunks(MAP_SIZE, std::vector<Chunk*>(MAP_SIZE));
+
     for (int x = 0; x!=MAP_SIZE; x++)
     {
         for (int z = 0; z != MAP_SIZE; z++)
         {
+            chunks[x][z] = new Chunk(x,z);
             
         // calculate the model matrix for each object and pass it to shader before drawing
-        glm::mat4 model = glm::mat4(1.0f);
+        // glm::mat4 model = glm::mat4(1.0f);
         
         // float angle = 20.0f * i;
         // double sin_v = 0.f, cos_v = 0.f;
         // sincos(glfwGetTime(), &sin_v, &cos_v);
         // float final = (glfwGetTime());
-        float lacunarity = 2.0f, gain = 0.3f;
-        int octaves = 5;
+        // float lacunarity = 2.0f, gain = 0.3f;
+        // int octaves = 5;
   
-        // int HASH = 489144;
+        // // int HASH = 489144;
         
-        // Scale the coordinates and add an offset to avoid integer grid points
-        float scale = 0.02f;
-        terrain[x][z] = stb_perlin_fbm_noise3(((float)(x+SEED_X) )* scale, 0.0f, (float)(z+SEED_Z) * scale, lacunarity, gain, octaves)*10;
+        // // Scale the coordinates and add an offset to avoid integer grid points
+        // float scale = 0.02f;
+        // terrain[x][z] = stb_perlin_fbm_noise3(((float)(x+SEED_X) )* scale, 0.0f, (float)(z+SEED_Z) * scale, lacunarity, gain, octaves)*10;
         }
     }
     // render loop
@@ -305,35 +313,49 @@ int main()
         // render boxes
         
 
-        for (int x = 0; x!=MAP_SIZE; x++)
+        for (int chunk_x = 0; chunk_x!=MAP_SIZE; chunk_x++)
         {
-            for (int z = 0; z != MAP_SIZE; z++)
+            for (int chunk_z = 0; chunk_z != MAP_SIZE; chunk_z++)
             {
-                
+                for (int x =0; x!=16; x++)
+                {
+                    for (int z=0;z!=16; z++)
+                    {
+                        for (int y = 0; y!= DEPTH;y++)
+                        {
+                            if (chunks[chunk_x][chunk_z]->blocks[x][y][z]!=0)
+                            {
+                                glm::mat4 model = glm::mat4(1.0f);
+                                model = glm::translate(model, glm::vec3(x+chunk_x*16, y, z+chunk_z*16));   
+                                ourShader.setMat4("model", model);
+                                glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+                            }
+                        }
+                    }
+                }
+                bcmrk.frame(deltaTime);
             // calculate the model matrix for each object and pass it to shader before drawing
             
             // for (int y = terrain[x][z]; y!= terrain[x][z];y++)
             // {
-                glm::mat4 model = glm::mat4(1.0f);
+                // glm::mat4 model = glm::mat4(1.0f);
                 // int y = terrain[x][z];
                 // std::cout << x << " " << y << " " << z <<" ";
-                model = glm::translate(model, glm::vec3(x, terrain[x][z], z));   
-                // model = glm::scale(model, glm::vec3(final, 1.f, final));
-                // model = glm::rotate(model, final, glm::vec3(1.0f, 1.f, 1.f));
-                // // model = glm::rotate(model, 5.f, glm::vec3( i%4, i%3, i%2));
-                ourShader.setMat4("model", model);
-                // glDrawArrays(GL_TRIANGLES, 0, 180);
-                // glDrawElements(GL_TRIANGLES, sizeof(indices_monotone_cube) / sizeof(unsigned int), GL_UNSIGNED_INT, 0);
-                glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-            // }
-            // std::cout << "\n\n";
+                // model = glm::translate(model, glm::vec3(x, terrain[x][z], z));   
+                // // model = glm::scale(model, glm::vec3(final, 1.f, final));
+                // // model = glm::rotate(model, final, glm::vec3(1.0f, 1.f, 1.f));
+                // // // model = glm::rotate(model, 5.f, glm::vec3( i%4, i%3, i%2));
+                // ourShader.setMat4("model", model);
+                // // glDrawArrays(GL_TRIANGLES, 0, 180);
+                // // glDrawElements(GL_TRIANGLES, sizeof(indices_monotone_cube) / sizeof(unsigned int), GL_UNSIGNED_INT, 0);
+                // glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
             }
         }
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
         glfwSwapBuffers(window);
         glfwPollEvents();
-        bcmrk.frame(deltaTime);
+        
     }
     // optional: de-allocate all resources once they've outlived their purpose:
     // ------------------------------------------------------------------------
@@ -346,24 +368,16 @@ int main()
     return 0;
 }
 
-int frame = 0;
-float fps = 0.0f;
+
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
 // ---------------------------------------------------------------------------------------------------------
 void processInput(GLFWwindow *window)
 {
-    // frame ++;
     float currentFrame = glfwGetTime();
     
     deltaTime = currentFrame - lastFrame;
     lastFrame = currentFrame;  
-    // fps += deltaTime;
-    // if (frame == 60 ){
-    //      std::cout << 60.0/fps << "\n";
-    //      fps = 0.0f;
-    //      frame = 0;
-    //     }
-        // cameraPos.y = 0.0f;
+
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS){
         glfwSetWindowShouldClose(window, true);}
 

@@ -7,6 +7,6 @@ const unsigned DEPTH = 192;
 const int CHUNK_SIZE = 16*16*DEPTH;
 int DEBUG = false;
 bool DEBUG_PRESS_HINT = true;
-int SEED = time(0); 
+int SEED_X = 0,SEED_Z = 0; 
 
 #endif //SETTINGS_HPP
