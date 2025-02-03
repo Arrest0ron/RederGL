@@ -383,67 +383,34 @@ int main()
 
         // render boxes
         
+        size_t totalInstances = 0;
+        for (int i = 0; i < CHUNK_ROWS; i++) {
+            for (int j = 0; j < CHUNK_COLS; j++) 
+            {
+                totalInstances += chunks[i][j]->blocks.size();          
+            }
+        }
 
+        glm::mat4 model = glm::mat4(1.0f);
+        // model = glm::translate(model, glm::vec3(chunk_x*16, 0, chunk_z*16));   
+        ourShader.setMat4("model", model);
 
         // for (int chunk_x = 0; chunk_x!=MAP_SIZE; chunk_x++)
         // {
         //     for (int chunk_z = 0; chunk_z != MAP_SIZE; chunk_z++)
         //     {
-        //         for (int x =0; x!=16; x++)
-        //         {
-        //             for (int z=0;z!=16; z++)
-        //             {
-        //                 for (int y = 0; y!= DEPTH;y++)
-        //                 {
-        //                     if (chunks[chunk_x][chunk_z]->blocks[x][y][z]!=0)
-        //                     {
-                                glm::mat4 model = glm::mat4(1.0f);
-                                // model = glm::translate(model, glm::vec3(chunk_x*16, 0, chunk_z*16));   
-                                ourShader.setMat4("model", model);
-                                // glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-                                // std::cout << "drawing " <<chunks[0][0]->blocks.size() << "cubes \n";
-                                glBindVertexArray(VAO_monotone_cube);
-                                size_t totalInstances = 0;
-                                for (int i = 0; i < CHUNK_ROWS; i++) {
-                                    for (int j = 0; j < CHUNK_COLS; j++) {
-                                        totalInstances += chunks[i][j]->blocks.size();
-                                        
-                                        
-                                    }
-                                }
-                                
-                                
-                                
-                                glDrawElementsInstanced(GL_TRIANGLES, 36, GL_UNSIGNED_INT,0,totalInstances);
-                                glBindVertexArray(0);
-                                GLenum err;
-                                while ((err = glGetError()) != GL_NO_ERROR) {
-                                    std::cerr << "OpenGL Error: " << err << std::endl;
-                                }
+                glBindVertexArray(VAO_monotone_cube);
+                glDrawElementsInstanced(GL_TRIANGLES, 36, GL_UNSIGNED_INT,0,totalInstances);
+                glBindVertexArray(0);
 
-                //             }
-                //         }
-                //     }
-                // }
-                bcmrk.frame(deltaTime, CHUNK_COLS*CHUNK_ROWS);
-                // break;
-            // calculate the model matrix for each object and pass it to shader before drawing
-            
-            // for (int y = terrain[x][z]; y!= terrain[x][z];y++)
-            // {
-                // glm::mat4 model = glm::mat4(1.0f);
-                // int y = terrain[x][z];
-                // std::cout << x << " " << y << " " << z <<" ";
-                // model = glm::translate(model, glm::vec3(x, terrain[x][z], z));   
-                // // model = glm::scale(model, glm::vec3(final, 1.f, final));
-                // // model = glm::rotate(model, final, glm::vec3(1.0f, 1.f, 1.f));
-                // // // model = glm::rotate(model, 5.f, glm::vec3( i%4, i%3, i%2));
-                // ourShader.setMat4("model", model);
-                // // glDrawArrays(GL_TRIANGLES, 0, 180);
-                // // glDrawElements(GL_TRIANGLES, sizeof(indices_monotone_cube) / sizeof(unsigned int), GL_UNSIGNED_INT, 0);
-                // glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-            // }
+                GLenum err;
+                while ((err = glGetError()) != GL_NO_ERROR) {
+                    std::cerr << "OpenGL Error: " << err << std::endl;
+                }
+        //     }
         // }
+        bcmrk.frame(deltaTime, CHUNK_COLS*CHUNK_ROWS);
+   
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
         glfwSwapBuffers(window);
@@ -455,6 +422,9 @@ int main()
     glDeleteVertexArrays(1, &VAO_monotone_cube);
     glDeleteBuffers(1, &VBO_monotone_cube);
     glDeleteBuffers(1, &EBO_monotone_cube);
+
+    glDeleteBuffers(1, &instanceVBO);
+    glDeleteBuffers(1, &instanceVBO_chunkCoord);
     // glfw: terminate, clearing all previously allocated GLFW resources.
     // ------------------------------------------------------------------
     glfwTerminate();
