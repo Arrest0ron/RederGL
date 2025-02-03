@@ -6,6 +6,8 @@ I will finally render several 3D objects in one scene!
 !["noise](Illustrations/noise.png)
 !["terrain"](Illustrations/terrain.png)
 !["instanced"](Illustrations/instanced.png)
+!["instanced terrain"](Illustrations/instanced_terrain.png)
+
 ## License
 >The MIT License (MIT)
 

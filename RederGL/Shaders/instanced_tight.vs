@@ -12,13 +12,14 @@ uniform mat4 model;
 
 // Output to fragment shader
 out vec4 Coord;
+flat out uint blockID;
 
 void main()
 {
     float x =  float((int(aOffset) >> 28) & 15);
     float y =  float((int(aOffset) >> 20) & 255);
     float z = float((int(aOffset) >> 16) & 0xF);
-    // uint blockID = aOffset & 0xFFFF;
+    blockID = uint(int(aOffset) & 0xFFFF);
     
     // int blockID = 4;
     // Unpack the offset and add it to the vertex position

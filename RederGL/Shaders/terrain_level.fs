@@ -2,15 +2,18 @@
 out vec4 FragColor;
 
 in vec4 Coord;
+flat in uint blockID;
 
 // uniform vec4 color;
 
 void main()
 {
-    float am = mod(abs(Coord.y-25.0f), 19.0f)/20+0.05f;
-    if (am < 0.4f)
+    float am = mod(abs(Coord.y-26.0f), 26.0f)/54.f+ 0.074f;
+
+    
+    if (blockID == 1u)
     {
-        FragColor = vec4(0.0f,  am, 0.0f, 1.0f);        
+        FragColor = vec4(0.0f,  1.f - am, 0.0f, 1.0f);
     }
     else
     {

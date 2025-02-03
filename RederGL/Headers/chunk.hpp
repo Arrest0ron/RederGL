@@ -23,7 +23,7 @@ struct BiomeType
     BiomeType(const std::string& BiomeName, float BiomeLacunarity,float BiomeGain,int BiomeOctaves) : name(BiomeName), lacunarity(BiomeLacunarity), gain(BiomeGain), octaves(BiomeOctaves) {}
 };
 
-BiomeType PLAINS("Plains", 2.0f, 0.3f, 6);
+BiomeType PLAINS("Plains", 2.0f, 0.3f, 5);
 
 
 class Chunk
@@ -36,15 +36,22 @@ class Chunk
     std::vector<uint32_t> blocks;
     Chunk(int chunk_x, int chunk_z) : _x(chunk_x), _z(chunk_z)
     {
-        float lacunarity = 2.0f, gain = 0.3f;
-        int octaves = 5;
         for (int x = 0; x!=16; x++)
         {
             for (int z = 0; z != 16; z++)
             {
                 float scale = 0.02f;
-                int y = stb_perlin_fbm_noise3(((float)(x+SEED_X+chunk_x*16) )* scale, 0.0f, (float)(z+SEED_Z+chunk_z*16) * scale, lacunarity, gain, octaves)*10+20;
-                blocks.push_back(packBlockData(x,y,z,1));
+                int y = stb_perlin_fbm_noise3(((float)(x+SEED_X+chunk_x*16) )* scale, 0.0f, (float)(z+SEED_Z+chunk_z*16) * scale, biome.lacunarity, biome.gain, biome.octaves)*(26)+26;
+                if (y > 20)
+                {
+                    blocks.push_back(packBlockData(x,y,z,1));
+                    blocks.push_back(packBlockData(x,y-1,z,1));
+                }
+                else 
+                {
+                    blocks.push_back(packBlockData(x,y,z,2));
+                    blocks.push_back(packBlockData(x,y-1,z,2));
+                }
             }
         }
     }

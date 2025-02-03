@@ -257,7 +257,7 @@ int main()
     glBindBuffer(GL_ARRAY_BUFFER, instanceVBO_chunkCoord);
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(float)*2, (void*)0);
     
-    glVertexAttribDivisor(2, 256); // Advance once per chunk
+    glVertexAttribDivisor(2, 256*2); // Advance once per chunk
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     // for (uint32_t packed : chunks[0][0]->blocks)
     // {
