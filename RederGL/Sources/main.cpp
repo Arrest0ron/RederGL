@@ -5,6 +5,7 @@
 #include <glm/glm.hpp>
 // #define STB_PERLIN_IMPLEMENTATION
 // #include <stb_perlin.h>
+#include <cstdint>
 #include <vector>
 #include <chunk.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -20,7 +21,7 @@ void generateChunks(std::vector<std::vector<Chunk*>>& chunks);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 
 
-const int MAP_SIZE = 7;
+const int MAP_SIZE = 3;
 // settings
 
 // camera
@@ -38,6 +39,7 @@ float fov   =  45.0f;
 float deltaTime = 0.0f;	// time between current frame and last frame
 float lastFrame = 0.0f;
 std::vector<std::vector<Chunk*>>chunks;
+std::vector<float> cords_chunks;
 
 int main()
 {
@@ -87,7 +89,7 @@ int main()
 
     // build and compile our shader zprogram
     // ------------------------------------
-    Shader ourShader("instanced.vs", "terrain_level.fs");
+    Shader ourShader("/home/user/RederGL/RederGL/Shaders/instanced_tight.vs", "terrain_level.fs");
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
@@ -154,23 +156,42 @@ int main()
     //     glm::vec3( 2.0f, -2.0f, 2.0f),
     // };
 
-    glm::vec3 positions[256*256];
-    for (int i = 0;i!=16*16;i++)
+    // glm::vec3 positions[256*256];
+    // for (int i = 0;i!=16*16;i++)
+    // {
+    //     for (int j =0;j!=16*16;j++)
+    //     {
+    //         positions[i*16*16+j] = glm::vec3(1*i,sqrt(i*i +j*j), 1*j);
+    //         // positions[i*16+j] = glm::vec3((float)i,-29.0f, (float)j);
+    //     }
+    // }
+        
+    const int CHUNK_ROWS = 64;
+    const int CHUNK_COLS = 64;
+    
+    chunks = std::vector<std::vector<Chunk*>>(CHUNK_ROWS, std::vector<Chunk*>(CHUNK_COLS));
+
+    for (int x = 0; x!=CHUNK_ROWS; x++)
     {
-        for (int j =0;j!=16*16;j++)
+        for (int z = 0; z != CHUNK_COLS; z++)
         {
-            positions[i*16*16+j] = glm::vec3(i,rand()%(256), j);
-            // positions[i*16+j] = glm::vec3((float)i,-29.0f, (float)j);
-        }
+            chunks[x][z] = new Chunk(x,z);
+            cords_chunks.push_back((float) x);
+            cords_chunks.push_back((float) z);
+       }
     }
-
-
-    GLuint VBO_monotone_cube, VAO_monotone_cube, EBO_monotone_cube,instanceVBO;
+    // for (int i = 0; i!=4;i++)
+    // {
+        // glBufferData(GL_ARRAY_BUFFER, chunks[0][0]->blocks. (float), nullptr, GL_STATIC_DRAW);
+        // glBufferSubData(GL_ARRAY_BUFFER, 0, size2 * sizeof(float), data2);
+    // }
+    GLuint VBO_monotone_cube, VAO_monotone_cube, EBO_monotone_cube,instanceVBO, instanceVBO_chunkCoord;
 
     glGenVertexArrays(1, &VAO_monotone_cube);
     glGenBuffers(1, &VBO_monotone_cube);
     glGenBuffers(1, &EBO_monotone_cube);
     glGenBuffers(1, &instanceVBO);
+    glGenBuffers(1, &instanceVBO_chunkCoord);
 
     glBindVertexArray(VAO_monotone_cube);
 
@@ -182,10 +203,40 @@ int main()
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_monotone_cube);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices_monotone_cube), indices_monotone_cube, GL_STATIC_DRAW);
+
+    // Calculate total buffer size
+    size_t totalSize = 0;
+    for (int i = 0; i < CHUNK_ROWS; i++) {
+        for (int j = 0; j < CHUNK_COLS; j++) {
+            totalSize += chunks[i][j]->blocks.size() * sizeof(uint32_t);
+        }
+    }
     
+    // Allocate buffer once
     glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * 256*256, &positions[0], GL_STATIC_DRAW);
-    glBindBuffer(GL_ARRAY_BUFFER, 0); 
+    glBufferData(GL_ARRAY_BUFFER, totalSize, nullptr, GL_DYNAMIC_DRAW);
+    
+    // Upload chunks at correct offsets
+    size_t offset = 0;
+    for (int i = 0; i < CHUNK_ROWS; i++) {
+        for (int j = 0; j < CHUNK_COLS; j++) {
+            std::vector<uint32_t>& blocks = chunks[i][j]->blocks;
+            size_t chunkSize = blocks.size() * sizeof(uint32_t);
+    
+            glBufferSubData(GL_ARRAY_BUFFER, offset, chunkSize, blocks.data());
+    
+            offset += chunkSize; // Move to next chunk's location
+        }
+    }
+
+    
+    
+    // Unbind buffer
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ARRAY_BUFFER, instanceVBO_chunkCoord);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float)* CHUNK_ROWS * CHUNK_COLS* 2, cords_chunks.data(), GL_DYNAMIC_DRAW);
+    // glBindBuffer(GL_ARRAY_BUFFER, 0);
+    
     
 
     // position attribute
@@ -194,14 +245,28 @@ int main()
     glEnableVertexAttribArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, VBO_monotone_cube);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);	
 
     glEnableVertexAttribArray(1);
     glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);	
+    glVertexAttribIPointer(1, 1, GL_UNSIGNED_INT, sizeof(uint32_t), (void*)0);
+    glVertexAttribDivisor(1, 1);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    glVertexAttribDivisor(1, 1);  
+    // Enable vertex attribute 2 (aChunkCoord)
+    glEnableVertexAttribArray(2);
+    glBindBuffer(GL_ARRAY_BUFFER, instanceVBO_chunkCoord);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(float)*2, (void*)0);
+    
+    glVertexAttribDivisor(2, 256); // Advance once per chunk
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    // for (uint32_t packed : chunks[0][0]->blocks)
+    // {
+    //     uint x = (packed >> 28) & 0xF;       // Extract bits 28-31 (4 bits)
+    //     uint y = (packed >> 20) & 0xFF;      // Extract bits 20-27 (8 bits)
+    //     uint z = (packed >> 16) & 0xF;       // Extract bits 16-19 (4 bits)
+    //     uint blockID = packed & 0xFFFF;      // Extract bits 0-15 (16 bits)
+    //     std::cout << packed << ": " << x << " " << y << " " << z << " " << blockID << "\n";
+    // }
 
     // texture coord attribute
     // glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
@@ -272,38 +337,14 @@ int main()
 
   
 
-    chunks = std::vector<std::vector<Chunk*>>(MAP_SIZE, std::vector<Chunk*>(MAP_SIZE));
 
-    for (int x = 0; x!=MAP_SIZE; x++)
-    {
-        for (int z = 0; z != MAP_SIZE; z++)
-        {
-            chunks[x][z] = new Chunk(x,z);
-            
-        // calculate the model matrix for each object and pass it to shader before drawing
-        // glm::mat4 model = glm::mat4(1.0f);
-        
-        // float angle = 20.0f * i;
-        // double sin_v = 0.f, cos_v = 0.f;
-        // sincos(glfwGetTime(), &sin_v, &cos_v);
-        // float final = (glfwGetTime());
-        // float lacunarity = 2.0f, gain = 0.3f;
-        // int octaves = 5;
-  
-        // // int HASH = 489144;
-        
-        // // Scale the coordinates and add an offset to avoid integer grid points
-        // float scale = 0.02f;
-        // terrain[x][z] = stb_perlin_fbm_noise3(((float)(x+SEED_X) )* scale, 0.0f, (float)(z+SEED_Z) * scale, lacunarity, gain, octaves)*10;
-        }
-    }
     // render loop
     // -----------
     ourShader.use();
 
     glm::mat4 projection = glm::perspective(glm::radians(90.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.2f, 1000.f);
     ourShader.setMat4("projection", projection); // note: currently we set the projection matrix each frame, but since the projection matrix rarely changes it's often best practice to set it outside the main loop only once.
-    glBindVertexArray(VAO_monotone_cube);
+    
     ChunkBenchmark bcmrk;
     while (!glfwWindowShouldClose(window))
     {
@@ -343,6 +384,7 @@ int main()
         // render boxes
         
 
+
         // for (int chunk_x = 0; chunk_x!=MAP_SIZE; chunk_x++)
         // {
         //     for (int chunk_z = 0; chunk_z != MAP_SIZE; chunk_z++)
@@ -355,16 +397,36 @@ int main()
         //                 {
         //                     if (chunks[chunk_x][chunk_z]->blocks[x][y][z]!=0)
         //                     {
-                                // glm::mat4 model = glm::mat4(1.0f);
-                                // model = glm::translate(model, glm::vec3(x+chunk_x*16, y, z+chunk_z*16));   
-                                // ourShader.setMat4("model", model);
+                                glm::mat4 model = glm::mat4(1.0f);
+                                // model = glm::translate(model, glm::vec3(chunk_x*16, 0, chunk_z*16));   
+                                ourShader.setMat4("model", model);
                                 // glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-                                glDrawElementsInstanced(GL_TRIANGLES, 36, GL_UNSIGNED_INT,0,256*256);
+                                // std::cout << "drawing " <<chunks[0][0]->blocks.size() << "cubes \n";
+                                glBindVertexArray(VAO_monotone_cube);
+                                size_t totalInstances = 0;
+                                for (int i = 0; i < CHUNK_ROWS; i++) {
+                                    for (int j = 0; j < CHUNK_COLS; j++) {
+                                        totalInstances += chunks[i][j]->blocks.size();
+                                        
+                                        
+                                    }
+                                }
+                                
+                                
+                                
+                                glDrawElementsInstanced(GL_TRIANGLES, 36, GL_UNSIGNED_INT,0,totalInstances);
+                                glBindVertexArray(0);
+                                GLenum err;
+                                while ((err = glGetError()) != GL_NO_ERROR) {
+                                    std::cerr << "OpenGL Error: " << err << std::endl;
+                                }
+
                 //             }
                 //         }
                 //     }
                 // }
-                bcmrk.frame(deltaTime);
+                bcmrk.frame(deltaTime, CHUNK_COLS*CHUNK_ROWS);
+                // break;
             // calculate the model matrix for each object and pass it to shader before drawing
             
             // for (int y = terrain[x][z]; y!= terrain[x][z];y++)

@@ -26,11 +26,12 @@ class ChunkBenchmark
         }
 
     }
-    void frame(float delta)
+    void frame(float delta, int frame_amount)
     {
         time += delta;
-        amount++;
+        amount+=frame_amount;
     }
+    
 };
 
 
