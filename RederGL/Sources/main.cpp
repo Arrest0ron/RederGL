@@ -16,13 +16,13 @@
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
-
+void generateChunks(std::vector<std::vector<Chunk*>>& chunks);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 
+
+const int MAP_SIZE = 7;
 // settings
-const bool FPS_CAMERA = false;
-const unsigned int SCR_WIDTH = 1920;
-const unsigned int SCR_HEIGHT = 1080;
+
 // camera
 glm::vec3 cameraPos   = glm::vec3(0.0f, 0.0f, 0.0f);
 glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
@@ -37,6 +37,7 @@ float fov   =  45.0f;
 // timing
 float deltaTime = 0.0f;	// time between current frame and last frame
 float lastFrame = 0.0f;
+std::vector<std::vector<Chunk*>>chunks;
 
 int main()
 {
@@ -86,7 +87,7 @@ int main()
 
     // build and compile our shader zprogram
     // ------------------------------------
-    Shader ourShader("transform.vs", "terrain_level.fs");
+    Shader ourShader("instanced.vs", "terrain_level.fs");
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
@@ -153,13 +154,26 @@ int main()
     //     glm::vec3( 2.0f, -2.0f, 2.0f),
     // };
 
-    GLuint VBO_monotone_cube, VAO_monotone_cube, EBO_monotone_cube;
+    glm::vec3 positions[256*256];
+    for (int i = 0;i!=16*16;i++)
+    {
+        for (int j =0;j!=16*16;j++)
+        {
+            positions[i*16*16+j] = glm::vec3(i,rand()%(256), j);
+            // positions[i*16+j] = glm::vec3((float)i,-29.0f, (float)j);
+        }
+    }
+
+
+    GLuint VBO_monotone_cube, VAO_monotone_cube, EBO_monotone_cube,instanceVBO;
 
     glGenVertexArrays(1, &VAO_monotone_cube);
     glGenBuffers(1, &VBO_monotone_cube);
     glGenBuffers(1, &EBO_monotone_cube);
+    glGenBuffers(1, &instanceVBO);
 
     glBindVertexArray(VAO_monotone_cube);
+
 
     
 
@@ -169,10 +183,26 @@ int main()
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_monotone_cube);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices_monotone_cube), indices_monotone_cube, GL_STATIC_DRAW);
     
+    glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * 256*256, &positions[0], GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0); 
+    
 
     // position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    
     glEnableVertexAttribArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO_monotone_cube);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);	
+
+    glEnableVertexAttribArray(1);
+    glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);	
+
+    glVertexAttribDivisor(1, 1);  
+
     // texture coord attribute
     // glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
     // glEnableVertexAttribArray(1);
@@ -235,14 +265,14 @@ int main()
     // ourShader.setInt("texture1", 0);
     // ourShader.setInt("texture2", 1);
 
-    const int MAP_SIZE = 7;
+    
     int terrain[MAP_SIZE][MAP_SIZE];
     srand(time(0));
     SEED_X = (rand())%100003, SEED_Z = (rand())%100151;
 
   
 
-    std::vector<std::vector<Chunk*>>chunks(MAP_SIZE, std::vector<Chunk*>(MAP_SIZE));
+    chunks = std::vector<std::vector<Chunk*>>(MAP_SIZE, std::vector<Chunk*>(MAP_SIZE));
 
     for (int x = 0; x!=MAP_SIZE; x++)
     {
@@ -313,26 +343,27 @@ int main()
         // render boxes
         
 
-        for (int chunk_x = 0; chunk_x!=MAP_SIZE; chunk_x++)
-        {
-            for (int chunk_z = 0; chunk_z != MAP_SIZE; chunk_z++)
-            {
-                for (int x =0; x!=16; x++)
-                {
-                    for (int z=0;z!=16; z++)
-                    {
-                        for (int y = 0; y!= DEPTH;y++)
-                        {
-                            if (chunks[chunk_x][chunk_z]->blocks[x][y][z]!=0)
-                            {
-                                glm::mat4 model = glm::mat4(1.0f);
-                                model = glm::translate(model, glm::vec3(x+chunk_x*16, y, z+chunk_z*16));   
-                                ourShader.setMat4("model", model);
-                                glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-                            }
-                        }
-                    }
-                }
+        // for (int chunk_x = 0; chunk_x!=MAP_SIZE; chunk_x++)
+        // {
+        //     for (int chunk_z = 0; chunk_z != MAP_SIZE; chunk_z++)
+        //     {
+        //         for (int x =0; x!=16; x++)
+        //         {
+        //             for (int z=0;z!=16; z++)
+        //             {
+        //                 for (int y = 0; y!= DEPTH;y++)
+        //                 {
+        //                     if (chunks[chunk_x][chunk_z]->blocks[x][y][z]!=0)
+        //                     {
+                                // glm::mat4 model = glm::mat4(1.0f);
+                                // model = glm::translate(model, glm::vec3(x+chunk_x*16, y, z+chunk_z*16));   
+                                // ourShader.setMat4("model", model);
+                                // glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+                                glDrawElementsInstanced(GL_TRIANGLES, 36, GL_UNSIGNED_INT,0,256*256);
+                //             }
+                //         }
+                //     }
+                // }
                 bcmrk.frame(deltaTime);
             // calculate the model matrix for each object and pass it to shader before drawing
             
@@ -349,8 +380,8 @@ int main()
                 // // glDrawArrays(GL_TRIANGLES, 0, 180);
                 // // glDrawElements(GL_TRIANGLES, sizeof(indices_monotone_cube) / sizeof(unsigned int), GL_UNSIGNED_INT, 0);
                 // glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-            }
-        }
+            // }
+        // }
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
         glfwSwapBuffers(window);
@@ -396,6 +427,10 @@ void processInput(GLFWwindow *window)
     if (glfwGetKey(window, GLFW_KEY_TAB) == GLFW_RELEASE)
     {
         DEBUG_PRESS_HINT = true;
+    }
+    if ( glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS)
+    {
+        generateChunks(chunks);
     }
     
     float cameraSpeed = static_cast<float>(25.0 * deltaTime);
@@ -464,4 +499,22 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
     // make sure the viewport matches the new window dimensions; note that width and 
     // height will be significantly larger than specified on retina displays.
     glViewport(0, 0, width, height);
+}
+
+void generateChunks(std::vector<std::vector<Chunk*>>& chunks)
+{
+    SEED_X = (rand())%100003, SEED_Z = (rand())%100151;
+    for (int x = 0; x!=MAP_SIZE; x++)
+    {
+        for (int z = 0; z != MAP_SIZE; z++)
+        {
+            if (chunks[x][z] != nullptr)
+            {
+                
+                delete chunks[x][z];
+            }
+            chunks[x][z] = new Chunk(x,z);
+        }
+    }
+    std::cout << "chunks re-gen: " << MAP_SIZE * MAP_SIZE << std::endl;
 }
