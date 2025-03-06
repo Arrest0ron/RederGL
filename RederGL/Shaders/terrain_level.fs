@@ -8,10 +8,10 @@ flat in uint blockID;
 
 void main()
 {
-    float am = mod(abs(Coord.y-26.0f), 26.0f)/54.f+ 0.074f;
+    float am = mod(abs(Coord.y-52.0f), 53.0f)/53.f+ 0.074f;
 
     
-    if (blockID == 1u)
+    if (am > 0.3)
     {
         FragColor = vec4(0.0f,  1.f - am, 0.0f, 1.0f);
     }

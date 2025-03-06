@@ -7,6 +7,7 @@
 // #include <stb_perlin.h>
 #include <cstdint>
 #include <vector>
+#include <viewport.hpp>
 #include <chunk.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -25,8 +26,8 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 // settings
 
 // camera
-glm::vec3 cameraPos   = glm::vec3(0.0f, 0.0f, 0.0f);
-glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+glm::vec3 cameraPos   = glm::vec3(10.0f, 100.0f, 10.0f);
+glm::vec3 cameraFront = glm::vec3(1.0f, 0.0f, 0.0f );
 glm::vec3 cameraUp    = glm::vec3(0.0f, 1.0f, 0.0f);
 
 bool firstMouse = true;
@@ -39,7 +40,6 @@ float fov   =  45.0f;
 float deltaTime = 0.0f;	// time between current frame and last frame
 float lastFrame = 0.0f;
 std::vector<std::vector<Chunk*>>chunks;
-std::vector<glm::vec2> cords_chunks;
 uint frames = 0;
 int main()
 {
@@ -166,8 +166,7 @@ int main()
     //     }
     // }
         
-    const int CHUNK_ROWS = 64;
-    const int CHUNK_COLS = 64;
+
     
     chunks = std::vector<std::vector<Chunk*>>(CHUNK_ROWS, std::vector<Chunk*>(CHUNK_COLS));
 
@@ -176,7 +175,6 @@ int main()
         for (int z = 0; z != CHUNK_COLS; z++)
         {
             chunks[x][z] = new Chunk(x,z);
-            cords_chunks.push_back(glm::vec2((float)x, (float) z));
        }
     }
     // for (int i = 0; i!=4;i++)
@@ -231,7 +229,6 @@ int main()
     // Unbind buffer
     // glBindBuffer(GL_ARRAY_BUFFER, 0);
     // glBindBuffer(GL_ARRAY_BUFFER, instanceVBO_chunkCoord);
-    // glBufferData(GL_ARRAY_BUFFER, sizeof(float)* CHUNK_ROWS * CHUNK_COLS* 2, cords_chunks.data(), GL_DYNAMIC_DRAW);
     // glBindBuffer(GL_ARRAY_BUFFER, 0);
     
     
@@ -346,6 +343,7 @@ int main()
     glm::mat4 model = glm::mat4(1.0f);
     ourShader.setMat4("model", model);
     glBindVertexArray(VAO_monotone_cube);
+    glfwSetTime(0.0);
     while (!glfwWindowShouldClose(window))
     {
         // input
@@ -406,11 +404,12 @@ int main()
                 glDrawElementsInstancedBaseInstance(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0, chunks[chunk_x][chunk_z]->visible_blocks.size(), baseInstance);
                 baseInstance += chunks[chunk_x][chunk_z]->visible_blocks.size();  // Move to the next chunk's instance range
                 
-                // GLenum err;
-                // while ((err = glGetError()) != GL_NO_ERROR) {
-                //     std::cerr << "OpenGL Error: " << err << std::endl;
-                // }
+
             }
+        }
+        GLenum err;
+        while ((err = glGetError()) != GL_NO_ERROR) {
+            std::cerr << "OpenGL Error: " << err << std::endl;
         }
         frames ++;
         bcmrk.frame(deltaTime, CHUNK_COLS*CHUNK_ROWS);
