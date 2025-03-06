@@ -18,7 +18,7 @@
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
-// void generateChunks(std::vector<std::vector<Chunk*>>& chunks);
+// void generateChunks(std::vector<std::vector<Chunk*>>& chunks_view.chunks);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 
 
@@ -39,7 +39,7 @@ float fov   =  45.0f;
 // timing
 float deltaTime = 0.0f;	// time between current frame and last frame
 float lastFrame = 0.0f;
-std::vector<std::vector<Chunk*>>chunks;
+// std::vector<std::vector<Chunk*>>chunks_view.chunks;
 uint frames = 0;
 int main()
 {
@@ -168,18 +168,12 @@ int main()
         
 
     
-    chunks = std::vector<std::vector<Chunk*>>(CHUNK_ROWS, std::vector<Chunk*>(CHUNK_COLS));
+    Viewport chunks_view;
+    
 
-    for (int x = 0; x!=CHUNK_ROWS; x++)
-    {
-        for (int z = 0; z != CHUNK_COLS; z++)
-        {
-            chunks[x][z] = new Chunk(x,z);
-       }
-    }
     // for (int i = 0; i!=4;i++)
     // {
-        // glBufferData(GL_ARRAY_BUFFER, chunks[0][0]->visible_blocks. (float), nullptr, GL_STATIC_DRAW);
+        // glBufferData(GL_ARRAY_BUFFER, chunks_view.chunks[0][0]->visible_blocks. (float), nullptr, GL_STATIC_DRAW);
         // glBufferSubData(GL_ARRAY_BUFFER, 0, size2 * sizeof(float), data2);
     // }
     GLuint VBO_monotone_cube, VAO_monotone_cube, EBO_monotone_cube,instanceVBO, instanceVBO_chunkCoord;
@@ -205,7 +199,7 @@ int main()
     size_t totalSize = 0;
     for (int i = 0; i < CHUNK_ROWS; i++) {
         for (int j = 0; j < CHUNK_COLS; j++) {
-            totalSize += chunks[i][j]->visible_blocks.size() * sizeof(uint32_t);
+            totalSize += chunks_view.chunks[i][j]->visible_blocks.size() * sizeof(uint32_t);
         }
     }
     
@@ -213,11 +207,11 @@ int main()
     glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
     glBufferData(GL_ARRAY_BUFFER, totalSize, nullptr, GL_STATIC_DRAW);
     
-    // Upload chunks at correct offsets
+    // Upload chunks_view.chunks at correct offsets
     size_t offset = 0;
     for (int i = 0; i < CHUNK_ROWS; i++) {
         for (int j = 0; j < CHUNK_COLS; j++) {
-            std::vector<uint32_t>& visible_blocks = chunks[i][j]->visible_blocks;
+            std::vector<uint32_t>& visible_blocks = chunks_view.chunks[i][j]->visible_blocks;
             size_t chunkSize = visible_blocks.size() * sizeof(uint32_t);
             glBufferSubData(GL_ARRAY_BUFFER, offset, chunkSize, visible_blocks.data());
             offset += chunkSize; // Move to next chunk's location
@@ -253,7 +247,7 @@ int main()
     
     // // glVertexAttribDivisor(2, 256*2); // Advance once per chunk
     // glBindBuffer(GL_ARRAY_BUFFER, 0);
-    // for (uint32_t packed : chunks[0][0]->visible_blocks)
+    // for (uint32_t packed : chunks_view.chunks[0][0]->visible_blocks)
     // {
     //     uint x = (packed >> 28) & 0xF;       // Extract bits 28-31 (4 bits)
     //     uint y = (packed >> 20) & 0xFF;      // Extract bits 20-27 (8 bits)
@@ -385,7 +379,7 @@ int main()
         // for (int i = 0; i < CHUNK_ROWS; i++) {
         //     for (int j = 0; j < CHUNK_COLS; j++) 
         //     {
-        //         totalInstances += chunks[i][j]->visible_blocks.size();          
+        //         totalInstances += chunks_view.chunks[i][j]->visible_blocks.size();          
         //     }
         // }
 
@@ -398,11 +392,11 @@ int main()
             {
            
             
-            // for (const Chunk& chunk : chunks) {
+            // for (const Chunk& chunk : chunks_view.chunks) {
             // std::cout << cords_chunks[chunk_x*MAP_SIZE+chunk_z][0];
                 ourShader.setVec2("chunkPosition", (float) chunk_x, (float) chunk_z);
-                glDrawElementsInstancedBaseInstance(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0, chunks[chunk_x][chunk_z]->visible_blocks.size(), baseInstance);
-                baseInstance += chunks[chunk_x][chunk_z]->visible_blocks.size();  // Move to the next chunk's instance range
+                glDrawElementsInstancedBaseInstance(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0, chunks_view.chunks[chunk_x][chunk_z]->visible_blocks.size(), baseInstance);
+                baseInstance += chunks_view.chunks[chunk_x][chunk_z]->visible_blocks.size();  // Move to the next chunk's instance range
                 
 
             }
@@ -466,7 +460,7 @@ void processInput(GLFWwindow *window)
     }
     if ( glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS)
     {
-        // generateChunks(chunks);/
+        // generateChunks(chunks_view.chunks);/
     }
     
     float cameraSpeed = static_cast<float>(25.0 * deltaTime);
@@ -537,20 +531,20 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
     glViewport(0, 0, width, height);
 }
 
-// void generateChunks(std::vector<std::vector<Chunk*>>& chunks)
+// void generateChunks(std::vector<std::vector<Chunk*>>& chunks_view.chunks)
 // {
 //     SEED_X = (rand())%100003, SEED_Z = (rand())%100151;
 //     for (int x = 0; x!=MAP_SIZE; x++)
 //     {
 //         for (int z = 0; z != MAP_SIZE; z++)
 //         {
-//             if (chunks[x][z] != nullptr)
+//             if (chunks_view.chunks[x][z] != nullptr)
 //             {
                 
-//                 delete chunks[x][z];
+//                 delete chunks_view.chunks[x][z];
 //             }
-//             chunks[x][z] = new Chunk(x,z);
+//             chunks_view.chunks[x][z] = new Chunk(x,z);
 //         }
 //     }
-//     std::cout << "chunks re-gen: " << MAP_SIZE * MAP_SIZE << std::endl;
+//     std::cout << "chunks_view.chunks re-gen: " << MAP_SIZE * MAP_SIZE << std::endl;
 // }

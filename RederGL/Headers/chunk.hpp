@@ -71,9 +71,9 @@ class Chunk
             }
 
         }
-        evaluate_visibility();
+        // evaluate_visibility();
     }
-    void evaluate_visibility() {
+    void evaluate_visibility(const std::vector<std::vector<Chunk*>>& chunks) {
         visible_blocks.clear(); // Clear previous visible blocks
     
         for (int x = 0; x != 16; x++) {
@@ -85,32 +85,86 @@ class Chunk
     
                         // Check all 6 neighbors
                         // Left neighbor (x-1, y, z)
-                        if (x == 0 || !(bitmap[x - 1][y] & (1 << z))) {
+                        if (x == 0) {
+                            // Border case: left edge of the chunk grid
+                            if (_x == 0) {
+                                // No chunk to the left, so the block is visible
+                                isVisible = true;
+                            } else {
+                                // Check the bitmap of the neighboring chunk to the left
+                                Chunk* leftChunk = chunks[_x - 1][_z];
+                                if (!(leftChunk->bitmap[15][y] & (1 << z))) {
+                                    isVisible = true;
+                                }
+                            }
+                        } else if (!(bitmap[x - 1][y] & (1 << z))) {
                             isVisible = true;
                         }
     
                         // Right neighbor (x+1, y, z)
-                        if (!isVisible && (x == 15 || !(bitmap[x + 1][y] & (1 << z)))) {
+                        if (!isVisible && x == 15) {
+                            // Border case: right edge of the chunk grid
+                            if (_x == chunks.size() - 1) {
+                                // No chunk to the right, so the block is visible
+                                isVisible = true;
+                            } else {
+                                // Check the bitmap of the neighboring chunk to the right
+                                Chunk* rightChunk = chunks[_x + 1][_z];
+                                if (!(rightChunk->bitmap[0][y] & (1 << z))) {
+                                    isVisible = true;
+                                }
+                            }
+                        } else if (!isVisible && !(bitmap[x + 1][y] & (1 << z))) {
                             isVisible = true;
                         }
     
                         // Down neighbor (x, y-1, z)
-                        if (!isVisible && (y == 0 || !(bitmap[x][y - 1] & (1 << z)))) {
+                        if (!isVisible && y == 0) {
+                            // Border case: bottom edge of the chunk
+                            isVisible = true;
+                        } else if (!isVisible && !(bitmap[x][y - 1] & (1 << z))) {
                             isVisible = true;
                         }
     
                         // Up neighbor (x, y+1, z)
-                        if (!isVisible && (y == DEPTH - 1 || !(bitmap[x][y + 1] & (1 << z)))) {
+                        if (!isVisible && y == DEPTH - 1) {
+                            // Border case: top edge of the chunk
+                            isVisible = true;
+                        } else if (!isVisible && !(bitmap[x][y + 1] & (1 << z))) {
                             isVisible = true;
                         }
     
                         // Back neighbor (x, y, z-1)
-                        if (!isVisible && (z == 0 || !(bitmap[x][y] & (1 << (z - 1))))) {
+                        if (!isVisible && z == 0) {
+                            // Border case: back edge of the chunk grid
+                            if (_z == 0) {
+                                // No chunk behind, so the block is visible
+                                isVisible = true;
+                            } else {
+                                // Check the bitmap of the neighboring chunk behind
+                                Chunk* backChunk = chunks[_x][_z - 1];
+                                if (!(backChunk->bitmap[x][y] & (1 << 15))) {
+                                    isVisible = true;
+                                }
+                            }
+                        } else if (!isVisible && !(bitmap[x][y] & (1 << (z - 1)))) {
                             isVisible = true;
                         }
     
                         // Front neighbor (x, y, z+1)
-                        if (!isVisible && (z == 15 || !(bitmap[x][y] & (1 << (z + 1))))) {
+                        if (!isVisible && z == 15) {
+                            // Border case: front edge of the chunk grid
+                            if (_z == chunks[0].size() - 1) {
+                                // No chunk in front, so the block is visible
+                                isVisible = true;
+                            } else {
+                                // Check the bitmap of the neighboring chunk in front
+                                Chunk* frontChunk = chunks[_x][_z + 1];
+                                if (!(frontChunk->bitmap[x][y] & (1 << 0))) {
+                                    isVisible = true;
+                                }
+                            }
+                        } else if (!isVisible && !(bitmap[x][y] & (1 << (z + 1)))) {
                             isVisible = true;
                         }
     
