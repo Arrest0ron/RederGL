@@ -85,12 +85,14 @@ int main()
     glEnable(GL_CULL_FACE);
     glFrontFace(GL_CW);
     glCullFace(GL_FRONT);
-    if (DEBUG) {glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);}
+    // if (DEBUG) {glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);}
+
+    // glDepthMask(GL_FALSE); // Disable depth writing
 
     // build and compile our shader zprogram
     // ------------------------------------
     Shader ourShader("/home/user/RederGL/RederGL/Shaders/instanced_tight.vs", "terrain_level.fs");
-
+    Shader transparentShader("/home/user/RederGL/RederGL/Shaders/instanced_tight.vs", "transparent.fs");
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
     float vertices_monotone_cube[] = {
@@ -166,7 +168,28 @@ int main()
     //     }
     // }
         
+// Create a depth texture
+GLuint depthTexture;
+glGenTextures(1, &depthTexture);
+glBindTexture(GL_TEXTURE_2D, depthTexture);
+glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SCR_WIDTH, SCR_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
 
+GLuint fbo;
+glGenFramebuffers(1, &fbo);
+glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthTexture, 0);
+
+// Disable color rendering (only depth is needed)
+glDrawBuffer(GL_NONE);
+glReadBuffer(GL_NONE);
+
+    // Check if the FBO is complete
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        std::cerr << "Error: Framebuffer is not complete!" << std::endl;
+    }
+
+    // Unbind the FBO
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     
     Viewport chunks_view;
     
@@ -176,36 +199,31 @@ int main()
         // glBufferData(GL_ARRAY_BUFFER, chunks_view.chunks[0][0]->visible_blocks. (float), nullptr, GL_STATIC_DRAW);
         // glBufferSubData(GL_ARRAY_BUFFER, 0, size2 * sizeof(float), data2);
     // }
-    GLuint VBO_monotone_cube, VAO_monotone_cube, EBO_monotone_cube,instanceVBO, instanceVBO_chunkCoord;
+    GLuint VBO_monotone_cube_solid, VAO_monotone_cube_solid, EBO_monotone_cube_solid,instanceVBO_solid;
+    glGenVertexArrays(1, &VAO_monotone_cube_solid);
+    glGenBuffers(1, &VBO_monotone_cube_solid);
+    glGenBuffers(1, &EBO_monotone_cube_solid);
+    glGenBuffers(1, &instanceVBO_solid);
 
-    glGenVertexArrays(1, &VAO_monotone_cube);
-    glGenBuffers(1, &VBO_monotone_cube);
-    glGenBuffers(1, &EBO_monotone_cube);
-    glGenBuffers(1, &instanceVBO);
-    glGenBuffers(1, &instanceVBO_chunkCoord);
+    glBindVertexArray(VAO_monotone_cube_solid);
 
-    glBindVertexArray(VAO_monotone_cube);
-
-
-    
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO_monotone_cube);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO_monotone_cube_solid);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices_monotone_cube), vertices_monotone_cube, GL_STATIC_DRAW);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_monotone_cube);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_monotone_cube_solid);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices_monotone_cube), indices_monotone_cube, GL_STATIC_DRAW);
 
     // Calculate total buffer size
-    size_t totalSize = 0;
+    size_t totalSolidSize = 0;
     for (int i = 0; i < CHUNK_ROWS; i++) {
         for (int j = 0; j < CHUNK_COLS; j++) {
-            totalSize += chunks_view.chunks[i][j]->visible_blocks.size() * sizeof(uint32_t);
+            totalSolidSize += chunks_view.chunks[i][j]->visible_blocks.size() * sizeof(uint32_t);
         }
     }
     
     // Allocate buffer once
-    glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
-    glBufferData(GL_ARRAY_BUFFER, totalSize, nullptr, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, instanceVBO_solid);
+    glBufferData(GL_ARRAY_BUFFER, totalSolidSize, nullptr, GL_STATIC_DRAW);
     
     // Upload chunks_view.chunks at correct offsets
     size_t offset = 0;
@@ -217,32 +235,71 @@ int main()
             offset += chunkSize; // Move to next chunk's location
         }
     }
-
-    
-    
-    // Unbind buffer
-    // glBindBuffer(GL_ARRAY_BUFFER, 0);
-    // glBindBuffer(GL_ARRAY_BUFFER, instanceVBO_chunkCoord);
-    // glBindBuffer(GL_ARRAY_BUFFER, 0);
-    
-    
-
     // position attribute
     // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    
     glEnableVertexAttribArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO_monotone_cube);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO_monotone_cube_solid);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 
     glEnableVertexAttribArray(1);
-    glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, instanceVBO_solid);
     glVertexAttribIPointer(1, 1, GL_UNSIGNED_INT, sizeof(uint32_t), (void*)0);
     glVertexAttribDivisor(1, 1);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
+
+
+
+
+    GLuint VBO_monotone_cube_transparent, VAO_monotone_cube_transparent, EBO_monotone_cube_transparent,instanceVBO_transparent;
+    glGenVertexArrays(1, &VAO_monotone_cube_transparent);
+    glGenBuffers(1, &VBO_monotone_cube_transparent);
+    glGenBuffers(1, &EBO_monotone_cube_transparent);
+    glGenBuffers(1, &instanceVBO_transparent);
+
+    glBindVertexArray(VAO_monotone_cube_transparent);
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBO_monotone_cube_transparent);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices_monotone_cube), vertices_monotone_cube, GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_monotone_cube_transparent);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices_monotone_cube), indices_monotone_cube, GL_STATIC_DRAW);
+
+    // Calculate total buffer size
+    size_t totaltransparentSize = 0;
+    for (int i = 0; i < CHUNK_ROWS; i++) {
+        for (int j = 0; j < CHUNK_COLS; j++) {
+            totaltransparentSize += chunks_view.chunks[i][j]->transparent_blocks.size() * sizeof(uint32_t);
+        }
+    }
+    
+    // Allocate buffer once
+    glBindBuffer(GL_ARRAY_BUFFER, instanceVBO_transparent);
+    glBufferData(GL_ARRAY_BUFFER, totaltransparentSize, nullptr, GL_STATIC_DRAW);
+    
+    // Upload chunks_view.chunks at correct offsets
+    size_t offset_t = 0;
+    for (int i = 0; i < CHUNK_ROWS; i++) {
+        for (int j = 0; j < CHUNK_COLS; j++) {
+            std::vector<uint32_t>& transparent_blocks = chunks_view.chunks[i][j]->transparent_blocks;
+            size_t chunkSize = transparent_blocks.size() * sizeof(uint32_t);
+            glBufferSubData(GL_ARRAY_BUFFER, offset_t, chunkSize, transparent_blocks.data());
+            offset_t += chunkSize; // Move to next chunk's location
+        }
+    }
+    // position attribute
+    // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO_monotone_cube_transparent);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+
+    glEnableVertexAttribArray(1);
+    glBindBuffer(GL_ARRAY_BUFFER, instanceVBO_transparent);
+    glVertexAttribIPointer(1, 1, GL_UNSIGNED_INT, sizeof(uint32_t), (void*)0);
+    glVertexAttribDivisor(1, 1);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
     // Enable vertex attribute 2 (aChunkCoord)
     // glEnableVertexAttribArray(2);
-    // glBindBuffer(GL_ARRAY_BUFFER, instanceVBO_chunkCoord);
     // glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(float)*2, (void*)0);
     
     // // glVertexAttribDivisor(2, 256*2); // Advance once per chunk
@@ -323,105 +380,103 @@ int main()
     srand(time(0));
     SEED_X = (rand())%100003, SEED_Z = (rand())%100151;
 
-  
+    ChunkBenchmark bcmrk;
 
-
+    glm::mat4 projection = glm::perspective(glm::radians(90.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.2f, 1000.f);
+    glm::mat4 model = glm::mat4(1.0f);
     // render loop
     // -----------
     ourShader.use();
-
-    glm::mat4 projection = glm::perspective(glm::radians(90.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.2f, 1000.f);
     ourShader.setMat4("projection", projection); // note: currently we set the projection matrix each frame, but since the projection matrix rarely changes it's often best practice to set it outside the main loop only once.
-    
-    ChunkBenchmark bcmrk;
-    glm::mat4 model = glm::mat4(1.0f);
     ourShader.setMat4("model", model);
-    glBindVertexArray(VAO_monotone_cube);
+
+    transparentShader.use();
+    transparentShader.setMat4("projection", projection);
+    transparentShader.setMat4("model", model);
+
+    glBindVertexArray(VAO_monotone_cube_solid);
     glfwSetTime(0.0);
+
+    
     while (!glfwWindowShouldClose(window))
     {
-        // input
-        // -----
+        // Input handling
         processInput(window);
-
-
-        // render
-        // ------
+    
+        // Clear the default framebuffer (color and depth)
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // also clear the depth buffer now!
-
-         // bind textures on corresponding texture units
-        // glActiveTexture(GL_TEXTURE0);
-        // glBindTexture(GL_TEXTURE_2D, texture1);
-        // glActiveTexture(GL_TEXTURE1);
-        // glBindTexture(GL_TEXTURE_2D, texture2);
-
-        // activate shader
-
-        // create transformations
-        // glm::mat4 view          = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
-        // glm::mat4 projection    = glm::mat4(1.0f);
-       
-        // glm::mat4 view = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
-        // float radius = 10.0f;
-
+        glBindFramebuffer(GL_FRAMEBUFFER, 0); // Switch to the default framebuffer
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    
+        // Bind the FBO and render opaque objects to populate the depth texture
+        // glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        // glClear(GL_DEPTH_BUFFER_BIT); // Clear only the depth buffer
+        glBindVertexArray(VAO_monotone_cube_solid);
+        ourShader.use();
         glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
         ourShader.setMat4("view", view);
-        // ourShader.setMat4("model", model);
-
-        // // pass transformation matrices to the shader
-        // ourShader.setMat4("view", view);
-        // ourShader.setVec4("color", glm::vec4(1.f, 1.f,1.f,0.f));
-
-        // render boxes
-        
-        // size_t totalInstances = 0;
-        // for (int i = 0; i < CHUNK_ROWS; i++) {
-        //     for (int j = 0; j < CHUNK_COLS; j++) 
-        //     {
-        //         totalInstances += chunks_view.chunks[i][j]->visible_blocks.size();          
-        //     }
-        // }
-
-
-        
-        uint32_t baseInstance = 0;  // Keeps track of where the next chunk starts
-        for (int chunk_x = 0; chunk_x!=CHUNK_COLS; chunk_x++)
-        {
-            for (int chunk_z = 0; chunk_z != CHUNK_ROWS; chunk_z++)
-            {
-           
-            
-            // for (const Chunk& chunk : chunks_view.chunks) {
-            // std::cout << cords_chunks[chunk_x*MAP_SIZE+chunk_z][0];
-                ourShader.setVec2("chunkPosition", (float) chunk_x, (float) chunk_z);
-                glDrawElementsInstancedBaseInstance(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0, chunks_view.chunks[chunk_x][chunk_z]->visible_blocks.size(), baseInstance);
-                baseInstance += chunks_view.chunks[chunk_x][chunk_z]->visible_blocks.size();  // Move to the next chunk's instance range
-                
-
+    
+        uint32_t baseInstance = 0; // Tracks the instance offset for opaque objects
+        for (int chunk_x = 0; chunk_x != CHUNK_COLS; chunk_x++) {
+            for (int chunk_z = 0; chunk_z != CHUNK_ROWS; chunk_z++) {
+                ourShader.setVec2("chunkPosition", (float)chunk_x, (float)chunk_z);
+                glDrawElementsInstancedBaseInstance(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0,
+                    chunks_view.chunks[chunk_x][chunk_z]->visible_blocks.size(), baseInstance);
+                baseInstance += chunks_view.chunks[chunk_x][chunk_z]->visible_blocks.size();
             }
         }
+    
+        // Switch back to the default framebuffer
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    
+        // Render transparent objects using the depth texture
+        transparentShader.use();
+        transparentShader.setMat4("view", view);
+        // transparentShader.
+        transparentShader.setFloat("waterAlpha", 0.1f);
+        transparentShader.setVec3("cameraPosition", cameraPos);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, depthTexture); // Bind the depth texture
+        transparentShader.setInt("depthTexture", 0);
+    
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glDepthMask(GL_FALSE); // Disable depth writing
+        glBindVertexArray(VAO_monotone_cube_transparent);
+        uint32_t baseInstanceTransparent = 0; // Tracks the instance offset for transparent objects
+        for (int chunk_x = 0; chunk_x != CHUNK_COLS; chunk_x++) {
+            for (int chunk_z = 0; chunk_z != CHUNK_ROWS; chunk_z++) {
+                ourShader.setVec2("chunkPosition", (float)chunk_x, (float)chunk_z);
+                glDrawElementsInstancedBaseInstance(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0,
+                    chunks_view.chunks[chunk_x][chunk_z]->transparent_blocks.size(), baseInstanceTransparent);
+                baseInstanceTransparent += chunks_view.chunks[chunk_x][chunk_z]->transparent_blocks.size();
+            }
+        }
+    
+        glDepthMask(GL_TRUE); // Re-enable depth writing
+        glDisable(GL_BLEND);
+    
+        // Check for OpenGL errors
         GLenum err;
         while ((err = glGetError()) != GL_NO_ERROR) {
             std::cerr << "OpenGL Error: " << err << std::endl;
         }
-        frames ++;
-        bcmrk.frame(deltaTime, CHUNK_COLS*CHUNK_ROWS);
-   
-        // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
-        // -------------------------------------------------------------------------------
+    
+        // Benchmarking and frame counting
+        frames++;
+        bcmrk.frame(deltaTime, CHUNK_COLS * CHUNK_ROWS);
+    
+        // Swap buffers and poll events
         glfwSwapBuffers(window);
         glfwPollEvents();
-        
     }
     // optional: de-allocate all resources once they've outlived their purpose:
     // ------------------------------------------------------------------------
-    glDeleteVertexArrays(1, &VAO_monotone_cube);
-    glDeleteBuffers(1, &VBO_monotone_cube);
-    glDeleteBuffers(1, &EBO_monotone_cube);
+    glDeleteVertexArrays(1, &VAO_monotone_cube_solid);
+    glDeleteBuffers(1, &VBO_monotone_cube_solid);
+    glDeleteBuffers(1, &EBO_monotone_cube_solid);
 
-    glDeleteBuffers(1, &instanceVBO);
-    glDeleteBuffers(1, &instanceVBO_chunkCoord);
+    glDeleteBuffers(1, &instanceVBO_solid);
     // glfw: terminate, clearing all previously allocated GLFW resources.
     // ------------------------------------------------------------------
     std::cout << "FPS: " << (float)frames / glfwGetTime() << "\n";

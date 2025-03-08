@@ -5,8 +5,8 @@
 #include <vector>
 #include <chunk.hpp>
 
-const int CHUNK_ROWS = 64;
-const int CHUNK_COLS = 64;
+const int CHUNK_ROWS = 16;
+const int CHUNK_COLS = 16;
 
 class Viewport
 {
@@ -34,6 +34,11 @@ public:
                 chunks[chunk_x][chunk_z]->evaluate_visibility(chunks);
             }
         }
+    }
+    void update_chunk(int _x, int _z)
+    {
+
+        chunks[_x][_z]->evaluate_visibility(chunks);
     }
 };
   

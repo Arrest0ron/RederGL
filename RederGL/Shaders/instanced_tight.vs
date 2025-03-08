@@ -22,6 +22,7 @@ void main() {
     float y = float((int(aOffset) >> 20) & 255);  // Extract bits 20-27 (8 bits)
     float z = float((int(aOffset) >> 16) & 15);   // Extract bits 16-19 (4 bits)
     
+    
 
     // Calculate global position
     vec3 globalPos = vec3(

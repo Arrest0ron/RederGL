@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include <viewport.hpp>
 #include <iostream>
 
 uint32_t packBlockData(int x, int y, int z, int blockID) {
@@ -29,49 +30,52 @@ struct BiomeType
 };
 
 BiomeType PLAINS("Plains", 2.0f, 0.3f, 5);
+BiomeType PLAINS_LOW("PlainsLow", 1.1f, 0.3f, 5);
 BiomeType STRANGE("Strange", 7771.5f, 67000.f, 2);
+
 
 class Chunk
 {
     int _x, _z;
-    
-    BiomeType biome = PLAINS; 
+    BiomeType biome = PLAINS;
     public:
-    // int visible_blocks[16][DEPTH][16];
     std::vector<uint32_t> visible_blocks;
+    std::vector<uint32_t> transparent_blocks;
     uint32_t blocks[16][DEPTH][16];
-    uint16_t bitmap[16][256];
+    uint16_t bitmap[16][DEPTH];
+
     Chunk(int chunk_x, int chunk_z) : _x(chunk_x), _z(chunk_z)
     {   
+        BiomeType biomes[2] = {PLAINS, PLAINS_LOW};
+        memset(blocks, 0, (16*DEPTH*16)*sizeof(uint32_t));
+        biomes[0] = PLAINS;
+        biomes[1] = PLAINS_LOW;
         bitmap[16][256] = {0}; // 0 init
-
         for (int x = 0; x!=16; x++)
         {
             for (int z = 0; z != 16; z++)
             {
                 float scale = 0.02f;
-                
                 int y = (stb_perlin_fbm_noise3(((float)(x+SEED_X+chunk_x*16) )* scale, 0.0f, (float)(z+SEED_Z+chunk_z*16) * scale, biome.lacunarity, biome.gain, biome.octaves)+ 1.f)*(20)+50;
-                // if (y > 45)
-                // {
-                    // std::cout << "solid at " << x << " " << y << " " << z << std::endl;
-                    blocks[x][y][z] = packBlockData(x,y,z,1);
-                    set_solid_block(x, y, z);
-                    
-                // }
-                // else 
-                // {
-                    for (int i =0; i != y; i++)
-                    {
-                        blocks[x][i][z] = packBlockData(x,i,z,2);
-                        set_solid_block(x, i, z);
-                    }
-                // }
+                blocks[x][y][z] = packBlockData(x,y,z,1);
+                set_solid_block(x, y, z);
+                int water = 67;
+                while (water > y)
+                {
+                    blocks[x][water][z] = packBlockData(x,water,z,2);
+                    // set_solid_block(x, water, z);
+                    water--;
+                }
+                
+                for (int i =0; i != y; i++)
+                {
+                    blocks[x][i][z] = packBlockData(x,i,z,1);
+                    set_solid_block(x, i, z);
+                }
                 
             }
 
         }
-        // evaluate_visibility();
     }
     void evaluate_visibility(const std::vector<std::vector<Chunk*>>& chunks) {
         visible_blocks.clear(); // Clear previous visible blocks
@@ -79,6 +83,11 @@ class Chunk
         for (int x = 0; x != 16; x++) {
             for (int z = 0; z != 16; z++) {
                 for (int y = 0; y != DEPTH; y++) {
+                    if (!blocks[x][y][z])
+                    {
+                        continue;
+                    }
+                    
                     // Check if the current block is solid
                     if (bitmap[x][y] & (1 << z)) {
                         bool isVisible = false;
@@ -172,6 +181,10 @@ class Chunk
                         if (isVisible) {
                             visible_blocks.push_back(blocks[x][y][z]);
                         }
+                    }
+                    else 
+                    {
+                        transparent_blocks.push_back(blocks[x][y][z]);
                     }
                 }
             }

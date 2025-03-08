@@ -11,13 +11,21 @@ void main()
     float am = mod(abs(Coord.y-52.0f), 53.0f)/53.f+ 0.074f;
 
     
-    if (am > 0.3)
+    if (blockID == 1u)
     {
         FragColor = vec4(0.0f,  1.f - am, 0.0f, 1.0f);
     }
-    else
+    else if (blockID == 2u)
     {
-        FragColor = vec4(0.0f,  0.0f, 1.f -am, 1.0f);
+        FragColor = vec4(1.0f,  0.0f, 0.0f, 0.5f);
+    }
+    else if (blockID == 0u)
+    {
+        FragColor = vec4(1.0f,  1.0f, 1.f, 1.0f);
+    }
+    else 
+    {
+        FragColor = vec4(0.0f,  0.0f, 0.f, 1.0f);
     }
     
     // FragColor = vec4(Coord.x, Coord.y, Coord.z, 1.0f);
